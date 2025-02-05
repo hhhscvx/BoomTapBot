@@ -20,9 +20,7 @@ class Tapper:
     def __init__(self, tg_client: Client) -> None:
         self.session_name = tg_client.name
         self.tg_client = tg_client
-        self.user_id = 0
-        self.energy_boost_name = 'fullRecharge'
-        self.turbo_boost_name = 'turbo'
+        self.device = "Linux"
 
     async def get_tg_web_data(self, proxy: str | None) -> str:
         if proxy:
@@ -86,6 +84,29 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=3)
 
+    async def login(self, http_client: ClientSession, tg_web_data: str) -> str:
+        """token"""
+        try:
+            response = await http_client.post(url='https://api-bot.backend-boom.com/api/v1/auth',
+                                              json={"data": tg_web_data,
+                                                    "device": self.device}
+                                              )
+            resp_json = await response.json()
+            response.raise_for_status()
 
-if __name__ == "__main__":
-    print('x')
+            return resp_json
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while Login: {error}")
+            await asyncio.sleep(delay=3)
+
+    async def get_me(self, http_client: ClientSession, access_token: str) -> dict:
+        """coins"""
+        try:
+            response = await http_client.get(url=f'https://api-bot.backend-boom.com/api/v1/me?access_token={access_token}')
+            resp_json = await response.json()
+            response.raise_for_status()
+
+            return resp_json
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error when Get user data: {error}")
+            await asyncio.sleep(delay=3)

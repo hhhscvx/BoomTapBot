@@ -9,7 +9,7 @@ from better_proxy import Proxy
 
 from bot.config import settings
 from bot.utils import logger
-from bot.core.tapper import Tapper#, run_tapper
+from bot.core.tapper import Tapper, run_tapper
 from bot.core.registrator import register_sessions
 
 
@@ -99,10 +99,7 @@ async def process() -> None:
     elif action == 2:
         tg_clients = await get_tg_clients()
 
-        t = Tapper(tg_client=tg_clients[0])
-        print(await t.get_tg_web_data(proxy=None))
-
-        # await run_tasks(tg_clients=tg_clients)
+        await run_tasks(tg_clients=tg_clients)
 
 
 async def run_tasks(tg_clients: list[Client]):
