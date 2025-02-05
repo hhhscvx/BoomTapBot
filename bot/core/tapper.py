@@ -1,7 +1,8 @@
 import asyncio
+from time import time
 from urllib.parse import unquote
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 import aiohttp
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
@@ -84,7 +85,7 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=3)
 
-    async def login(self, http_client: ClientSession, tg_web_data: str) -> str:
+    async def login(self, http_client: ClientSession, tg_web_data: str) -> dict:
         """token"""
         try:
             response = await http_client.post(url='https://api-bot.backend-boom.com/api/v1/auth',
@@ -110,3 +111,52 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | Unknown error when Get user data: {error}")
             await asyncio.sleep(delay=3)
+        
+
+    async def check_proxy(self, http_client: ClientSession, proxy: Proxy) -> None:
+        try:
+            response = await http_client.get(url='https://httpbin.org/ip', timeout=ClientTimeout(5))
+            ip = (await response.json()).get('origin')
+            logger.info(f"{self.session_name} | Proxy IP: {ip}")
+        except Exception as error:
+            logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
+
+
+    async def run(self, proxy: str | None) -> None:
+        # TODO: проверить, экспайрится ли токен: 85c45142-7f01-4242-b9c4-d2832e178a67
+        last_claimed_time = 0
+
+        proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
+
+        async with aiohttp.ClientSession(headers=headers, connector=proxy_conn) as http_client:
+            if proxy:
+                await self.check_proxy(http_client=http_client, proxy=proxy)
+
+            while True:
+                try:
+                        
+                    tg_web_data = await self.get_tg_web_data(proxy=proxy)
+                    login = await self.login(http_client=http_client, tg_web_data=tg_web_data)
+                    access_token = login["token"]
+
+                    me = await self.get_me(http_client=http_client, access_token=access_token)
+
+                    logger.success(f"Successfully Login! Balance: {me['coins']}")
+                    
+                except InvalidSession as error:
+                    raise error
+
+                except Exception as error:
+                    logger.error(f"{self.session_name} | Unknown error: {error}")
+                    await asyncio.sleep(delay=3)
+                
+                else:
+                    logger.info(f"Start sleep on {settings.SLEEP_BETWEEN_CLAIM}s..")
+                    await asyncio.sleep(delay=settings.SLEEP_BETWEEN_CLAIM + 5)
+
+
+async def run_tapper(tg_client: Client, proxy: str | None):
+    try:
+        await Tapper(tg_client=tg_client).run(proxy=proxy)
+    except InvalidSession:
+        logger.error(f"{tg_client.name} | Invalid Session")

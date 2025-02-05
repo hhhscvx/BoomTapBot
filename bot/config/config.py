@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     API_ID: int
     API_HASH: str
 
+    SLEEP_BETWEEN_CLAIM: int = 3600
+
     RELOGIN_DELAY: list[int] = [5, 7]
 
     USE_PROXY_FROM_FILE: bool = False
