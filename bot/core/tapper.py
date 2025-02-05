@@ -111,6 +111,18 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | Unknown error when Get user data: {error}")
             await asyncio.sleep(delay=3)
+
+    async def claim(self, http_client: ClientSession, access_token: str) -> dict:
+        try:
+            response = await http_client.get(url=f'https://api-bot.backend-boom.com/api/v1/daily/claim?access_token={access_token}')
+            resp_json = await response.json()
+            response.raise_for_status()
+
+            return resp_json
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error when claim: {error}")
+            await asyncio.sleep(delay=3)
+        
         
 
     async def check_proxy(self, http_client: ClientSession, proxy: Proxy) -> None:
@@ -132,12 +144,18 @@ class Tapper:
             if proxy:
                 await self.check_proxy(http_client=http_client, proxy=proxy)
 
+            tg_web_data = await self.get_tg_web_data(proxy=proxy)
+            login = await self.login(http_client=http_client, tg_web_data=tg_web_data)
+            access_token = login["token"]
+
             while True:
                 try:
+                    if (time() - last_claimed_time > 3600 * 8) or last_claimed_time == 0:
+                        claimed = await self.claim(http_client, access_token=access_token)
+                        logger.info(f"Try to claim.. {claimed}")
+                        if len(claimed) > 0:
+                            logger.success(f"Claimed +{claimed[0]['value']} coins")
                         
-                    tg_web_data = await self.get_tg_web_data(proxy=proxy)
-                    login = await self.login(http_client=http_client, tg_web_data=tg_web_data)
-                    access_token = login["token"]
 
                     me = await self.get_me(http_client=http_client, access_token=access_token)
 
